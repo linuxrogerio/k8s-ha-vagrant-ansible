@@ -1,0 +1,1 @@
+kubeadm join 172.16.16.100:6443 --token jj3uri.fttxdx2c5mcgcw68     --discovery-token-ca-cert-hash sha256:28f67b2b22c45711ab760e6b7430059813b3ad5217465bbe20cd9ba25eaf722b 

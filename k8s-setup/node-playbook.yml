@@ -1,0 +1,155 @@
+---
+- hosts: all
+  become: true
+  tasks:
+
+    - name: /etc/hosts configuration
+      lineinfile:
+        path: /etc/hosts
+        line: "{{ item }}"
+      loop:
+        - "#Cluster Kubernetes"
+        - "172.16.16.100 loadbalancer loadbalancer.example.com"
+        - "172.16.16.101 kmaster1 kmaster1.example.com"
+        - "172.16.16.102 kmaster2 kmaster2.example.com"
+        - "172.16.16.201 kworker1 kworker1.example.com"
+
+    - name: Make sure we have a 'wheel' groups
+      group:
+        name: wheel
+        state: present
+
+    - name: Allow 'wheel' group to have passwordless sudo
+      lineinfile:
+        dest: /etc/sudoers
+        state: present
+        regexp: '^%wheel'
+        line: '%wheel ALL=(ALL) NOPASSWD: ALL'
+        validate: 'visudo -cf %s'
+  
+    - name: Add sudoers users to wheel group
+      user:
+        name="{{ item }}"
+        groups=wheel
+        append=yes
+        state=present
+        createhome=yes
+        shell=/bin/bash
+      with_items:
+        - rreis
+        - vagrant
+    
+    - name: Set up authorization keys for the rreis user
+      authorized_key: user=rreis key="{{item}}"
+      with_file:
+        - /home/rreis/.ssh/id_rsa.pub
+
+    - name: Disabling UFW
+      ufw:
+        state: disabled
+
+    - name: Remove swapfile from /etc/fstab
+      mount:
+        name: "{{ item }}"
+        fstype: swap
+        state: absent
+      with_items:
+        - swap
+        - none
+
+    - name: Disable swap
+      command: swapoff -a
+      when: ansible_swaptotal_mb > 0
+
+    - name: Creating a sysctl file with kubernetes network configuration content
+      copy:
+        dest: "/etc/sysctl.d/kubernetes.conf"
+        content: |
+          net.bridge.bridge-nf-call-ip6tables = 1
+          net.bridge.bridge-nf-call-iptables = 1
+      register: result
+
+    - name: Applying before configurations using sysctl
+      shell: sysctl --system
+      when: result.changed
+
+    - name: Install some docker packages
+      apt:
+        name: "{{ packages }}"
+        state: present
+        update_cache: yes
+      vars:
+        packages:
+        - software-properties-common
+        - apt-transport-https
+        - ca-certificates
+        - gnupg-agent
+        - curl
+        - vim
+        - sysstat
+
+    - name: Add an apt signing key for Docker
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add apt repository for stable version
+      apt_repository:
+        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable
+        state: present
+
+    - name: Install docker and its dependecies
+      apt: 
+        name: "{{ packages }}"
+        state: present
+        update_cache: yes
+      vars:
+        packages:
+        - docker-ce=5:19.03.10~3-0~ubuntu-focal
+        - containerd.io
+      notify:
+        - docker status
+
+    - name: Add rreis user to docker group
+      user:
+        name: rreis
+        group: docker
+
+    - name: Add an apt signing key for Kubernetes
+      apt_key:
+        url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+        state: present
+
+    - name: Adding apt repository for Kubernetes
+      apt_repository:
+        repo: deb https://apt.kubernetes.io/ kubernetes-xenial main
+        state: present
+        filename: kubernetes.list
+
+    - name: Install Kubernetes binaries
+      apt: 
+        name: "{{ packages }}"
+        state: present
+        update_cache: yes
+      vars:
+        packages:
+          - kubeadm=1.19.2-00
+          - kubelet=1.19.2-00
+          - kubectl=1.19.2-00
+
+    - name: Restart kubelet
+      service:
+        name: kubelet
+        daemon_reload: yes
+        state: restarted
+
+    - name: Copy the join command to server location
+      copy: src=join-command dest=/tmp/join-command.sh mode=0777
+
+    - name: Join the node to cluster
+      command: sh /tmp/join-command.sh
+
+  handlers:
+    - name: docker status
+      service: name=docker state=started  
+

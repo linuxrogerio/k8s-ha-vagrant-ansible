@@ -1,0 +1,80 @@
+---
+- hosts: all
+  become: true
+  tasks:
+
+    - name: /etc/hosts configuration
+      lineinfile:
+        path: /etc/hosts
+        line: "{{ item }}"
+      loop:
+        - "#Cluster Kubernetes"
+        - "172.16.16.100 loadbalancer loadbalancer.example.com"
+        - "172.16.16.101 kmaster1 kmaster1.example.com"
+        - "172.16.16.102 kmaster2 kmaster2.example.com"
+        - "172.16.16.201 kworker1 kworker1.example.com"
+
+    - name: Make sure we have a 'wheel' groups
+      group:
+        name: wheel
+        state: present
+
+    - name: Allow 'wheel' group to have passwordless sudo
+      lineinfile:
+        dest: /etc/sudoers
+        state: present
+        regexp: '^%wheel'
+        line: '%wheel ALL=(ALL) NOPASSWD: ALL'
+        validate: 'visudo -cf %s'
+  
+    - name: Add sudoers users to wheel group
+      user:
+        name="{{ item }}"
+        groups=wheel
+        append=yes
+        state=present
+        createhome=yes
+        shell=/bin/bash
+      with_items:
+        - rreis
+        - vagrant
+  
+  
+    - name: Set up authorization keys for the rreis user
+      authorized_key: user=rreis key="{{item}}"
+      with_file:
+        - /home/rreis/.ssh/id_rsa.pub
+
+    - name: Install haproxy package
+      apt:
+        name: "{{ packages }}"
+        state: present
+        update_cache: yes
+      vars:
+        packages:
+        - haproxy
+        - vim
+
+    - name: Creating a haproxy configuration file
+      blockinfile:
+        path: "/etc/haproxy/haproxy.cfg"
+        insertafter: EOF
+        block: |
+          frontend kubernetes-frontend
+              bind 172.16.16.100:6443
+              mode tcp
+              option tcplog
+              default_backend kubernetes-backend
+
+          backend kubernetes-backend
+              mode tcp
+              option tcp-check
+              balance roundrobin
+              server kmaster1 172.16.16.101:6443 check fall 3 rise 2
+              server kmaster2 172.16.16.102:6443 check fall 3 rise 2  
+          
+    - name: Restarting haproxy server
+      ansible.builtin.systemd:
+        state: restarted
+        name: haproxy
+      
