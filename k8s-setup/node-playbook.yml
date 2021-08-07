@@ -144,10 +144,10 @@
         state: restarted
 
     - name: Copy the join command to server location
-      copy: src=join-command dest=/tmp/join-command.sh mode=0777
+      copy: src=join-command-node dest=/tmp/join-command-node.sh mode=0777
 
     - name: Join the node to cluster
-      command: sh /tmp/join-command.sh
+      command: sh /tmp/join-command-node.sh
 
   handlers:
     - name: docker status
