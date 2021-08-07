@@ -1,2 +1,2 @@
 # k8s-ha-vagrant-ansible
-This repository was created to faster create a k8s cluster using vagrant and ansible - It's just for my studies.
+This repository was created to faster create a k8s cluster using vagrant and ansible - It's just for my studies, however make yourself confortable to make adjusts and improvements. :D
