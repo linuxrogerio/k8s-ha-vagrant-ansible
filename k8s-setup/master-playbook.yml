@@ -154,7 +154,7 @@
       when: (inventory_hostname == "kmaster1")
 
     - name: Generate join command
-      command: kubeadm token create --print-join-command-node
+      command: kubeadm token create --print-join-command
       register: join_command
       when: (inventory_hostname == "kmaster1")
 
