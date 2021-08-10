@@ -175,11 +175,19 @@
       - mkdir -p /root/.kube
       - cp -i /etc/kubernetes/admin.conf /root/.kube/config
 
-    - name: Copy the join command to server location
+    - name: Copy the join command to local server
       copy: src=join-master-command dest=/tmp/join-master-command-inicial.sh mode=0777
       when: (inventory_hostname == "kmaster2")
 
-    - name: Join the node to cluster
+    - name: Copy the script to local server
+      copy: src=script.sh dest=/tmp/script.sh mode=0777
+      when: (inventory_hostname == "kmaster2")
+
+    - name: createting a final script to join the master2
+      command: sh /tmp/script.sh
+      when: (inventory_hostname == "kmaster2")
+
+    - name: Join the master2 to cluster
       command: sh /tmp/join-master-command-final.sh
       when: (inventory_hostname == "kmaster2")
 
