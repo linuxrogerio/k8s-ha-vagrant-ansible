@@ -158,7 +158,7 @@
       register: join_command
       when: (inventory_hostname == "kmaster1")
 
-    - name: Copy join command to local file
+    - name: Copy join node command to local file
       become: false
       local_action: copy content="{{ join_command.stdout_lines[0] }}" dest="./join-command-node"
       when: (inventory_hostname == "kmaster1")
@@ -177,10 +177,6 @@
 
     - name: Copy the join command to server location
       copy: src=join-master-command dest=/tmp/join-master-command-inicial.sh mode=0777
-      when: (inventory_hostname == "kmaster2")
-
-    - name: Join the node to cluster
-      command: cat /tmp/join-master-command-inicial.sh  | cut -c4973-5258 | tr -d "\\\\" | tr -d "," | tr -d "\"" >  /tmp/join-master-command-final.sh
       when: (inventory_hostname == "kmaster2")
 
     - name: Join the node to cluster
