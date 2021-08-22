@@ -36,13 +36,13 @@
         createhome=yes
         shell=/bin/bash
       with_items:
-        - rreis
+        - rsreis
         - vagrant
     
-    - name: Set up authorization keys for the rreis user
-      authorized_key: user=rreis key="{{item}}"
+    - name: Set up authorization keys for the rsreis user
+      authorized_key: user=rsreis key="{{item}}"
       with_file:
-        - /home/rreis/.ssh/id_rsa.pub
+        - /home/rsreis/.ssh/id_rsa.pub
 
     - name: Disabling UFW
       ufw:
@@ -110,9 +110,9 @@
       notify:
         - docker status
 
-    - name: Add rreis user to docker group
+    - name: Add rsreis user to docker group
       user:
-        name: rreis
+        name: rsreis
         group: docker
 
     - name: Add an apt signing key for Kubernetes
